@@ -1,3 +1,7 @@
+### Modified version of the OpenBCI GUI for OSC control and Spectrum output in a CSV file.
+
+---
+
 For the full getting started guide, go to [our Docs page](http://docs.openbci.com/tutorials/01-GettingStarted).
 
 ### 1. Download Processing for your operating system
