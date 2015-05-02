@@ -10,6 +10,8 @@ Included:
 - a PureData patch for DMX manipulation
 - an OSCulator patch to monitor ongoing values
 
+Dependencies: requires oscP5 and netP5 librairies
+
 Contact/Questions: Guillaume Dumas, deep[at]introspection.eu
 
 Below is the original README.md
