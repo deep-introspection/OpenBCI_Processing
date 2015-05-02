@@ -13,7 +13,7 @@ public class OutputFile_rawtxt {
   OutputFile_rawtxt(float fs_Hz) {
 
     //build up the file name
-    fname = "SavedData\\OpenBCI-RAW-";
+    fname = "OpenBCI-RAW-";
 
     //add year month day to the file name
     fname = fname + year() + "-";

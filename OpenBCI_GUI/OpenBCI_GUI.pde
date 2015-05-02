@@ -25,8 +25,17 @@ import java.util.Map.Entry;
 import processing.serial.*;  //for serial communication to Arduino/OpenBCI
 import java.awt.event.*; //to allow for event listener on screen resize
 
-boolean isVerbose = true; //set true if you want more verbosity in console
+// START Guillaume's modifications
+import oscP5.*;
+import netP5.*;
+OscP5 oscP5;
+NetAddress myRemoteLocation;
+String[] selectedFreqBands;
+PrintWriter output;
+int LastStartRecording;
+// -END- Guillaume's modifications
 
+boolean isVerbose = false; //set true if you want more verbosity in console
 
 //used to switch between application states
 int systemMode = 0; /* Modes: 0 = system stopped/control panel setings / 10 = gui / 20 = help guide */
@@ -113,8 +122,8 @@ int smoothFac_ind = 0;    //initial index into the smoothFac array
 //plotting constants
 color bgColor = color(1, 18, 41);
 Gui_Manager gui;
-float default_vertScale_uV = 200.0f;  //used for vertical scale of time-domain montage plot and frequency-domain FFT plot
-float displayTime_sec = 5f;    //define how much time is shown on the time-domain montage plot (and how much is used in the FFT plot?)
+float default_vertScale_uV = 100.0f;  //used for vertical scale of time-domain montage plot and frequency-domain FFT plot
+float displayTime_sec = 10f;    //define how much time is shown on the time-domain montage plot (and how much is used in the FFT plot?)
 float dataBuff_len_sec = displayTime_sec+3f; //needs to be wider than actual display so that filter startup is hidden
 
 //Control Panel for (re)configuring system settings
@@ -150,9 +159,14 @@ PFont f2;
 PFont f3;
 
 //========================SETUP============================//
-//========================SETUP============================//
-//========================SETUP============================//
 void setup() {
+  
+  oscP5 = new OscP5(this,6400);
+  myRemoteLocation = new NetAddress("127.0.0.1",12000);
+  
+  // START Guillaume's modifications
+  output = createWriter("Traces"+year()+"-"+month()+"-"+day()+"_"+hour()+"-"+minute()+"-"+second()+".txt");
+  // -END- Guillaume's modifications
   
   //open window
   size(win_x, win_y, P2D);
@@ -206,7 +220,6 @@ void setup() {
 
 }
 //====================== END--OF ==========================//
-//========================SETUP============================//
 //========================SETUP============================//
 
 int pointCounter = 0;
@@ -464,13 +477,21 @@ void systemUpdate(){ // for updating data values and variables
       println("systemUpdate: reinitializing GUI");
       timeOfGUIreinitialize = millis();
       initializeGUI();
-      playground.x = width; //reset the x for the playground...
     }
 
     playground.update();
   }
 
   controlPanel.update();
+  
+  // START Guillaume's modifications
+  if(((millis()-LastStartRecording)>(1000*60*10))&&(isRunning)){
+    println("REBOOT!");
+    stopButtonWasPressed();
+    stopButtonWasPressed();
+  }
+  // -END- Guillaume's modifications
+  
 }
 
 void systemDraw(){ //for drawing to the screen
@@ -645,9 +666,11 @@ void processNewData() {
   //if you want to, re-reference the montage to make it be a mean-head reference
   if (false) rereferenceTheMontage(dataBuffY_filtY_uV);
   
+  
+  String tmp = prevMillis + ",";
+  
   //update the FFT (frequency spectrum)
-  for (int Ichan=0;Ichan < nchan; Ichan++) {  
-
+  for (int Ichan=0;Ichan < nchan; Ichan++) {     
     //copy the previous FFT data...enables us to apply some smoothing to the FFT data
     for (int I=0; I < fftBuff[Ichan].specSize(); I++) prevFFTdata[I] = fftBuff[Ichan].getBand(I); //copy the old spectrum values
     
@@ -684,6 +707,7 @@ void processNewData() {
     
     //average the FFT with previous FFT data so that it makes it smoother in time
     double min_val = 0.01d;
+    float sumSpectrum = 0;
     for (int I=0; I < fftBuff[Ichan].specSize(); I++) {   //loop over each fft bin
       if (prevFFTdata[I] < min_val) prevFFTdata[I] = (float)min_val; //make sure we're not too small for the log calls
       foo = fftBuff[Ichan].getBand(I); if (foo < min_val) foo = min_val; //make sure this value isn't too small
@@ -702,7 +726,39 @@ void processNewData() {
       }
       fftBuff[Ichan].setBand(I,(float)foo); //put the smoothed data back into the fftBuff data holder for use by everyone else
     } //end loop over FFT bins
+     
+  // START Guillaume's modifications
+  selectedFreqBands = loadStrings("selectedFreqBands.txt");
+  int index=0;
+  while (index < selectedFreqBands.length) {
+    String[] pieces = split(selectedFreqBands[index], ',');
+    if (index>0) {
+      String freqName = pieces[0];
+      int freqStart = int(pieces[1]);
+      int freqEnd = int(pieces[2]);
+      float freqGain = float(pieces[3]);
+      float freqMin = float(pieces[4]);
+      float freqMax = float(pieces[5]);
+      OscMessage myMessage = new OscMessage("/openbci/chan"+str(Ichan+1)+"/"+freqName);
+      float moy = 0;
+      for (int freqBin = freqStart; freqBin <= freqEnd; freqBin++){ 
+        moy += fftBuff[Ichan].getBand(freqBin);
+      }
+      moy=freqGain*moy/(freqEnd-freqStart+1);
+      myMessage.add(((moy-freqMin)/(freqMax-freqMin)));
+      oscP5.send(myMessage, myRemoteLocation); 
+      println(millis()+": Sent OSC at /openbci/chan"+str(Ichan+1)+"/"+freqName+" = "+moy);
+      tmp += "/openbci/chan"+str(Ichan+1)+"/"+freqName+"="+moy+";";
+    }
+    index = index + 1;
+  }
+  // -END- Guillaume's modifications
+
   } //end the loop over channels.
+  
+  // START Guillaume's modifications
+  output.println(tmp);
+  // -END- Guillaume's modifications
   
   //apply additional processing for the time-domain montage plot (ie, filtering)
   eegProcessing.process(yLittleBuff_uV,dataBuffY_uV,dataBuffY_filtY_uV,fftBuff);
@@ -1032,6 +1088,9 @@ void stopButtonWasPressed() {
   else { //not running
     println("openBCI_GUI: startButton was pressed...starting data transfer...");
     startRunning();
+    // START Cuillaume's modifications
+    LastStartRecording = millis();
+    // -END- Cuillaume's modifications
     nextPlayback_millis = millis();  //used for synthesizeData and readFromFile.  This restarts the clock that keeps the playback at the right pace.
   }
 }
@@ -1274,7 +1333,7 @@ void toggleShowPolarity() {
   gui.headPlot1.use_polarity = !gui.headPlot1.use_polarity;
   
   //update the button
-  gui.showPolarityButton.but_txt = "Polarity\n" + gui.headPlot1.getUsePolarityTrueFalse();
+  gui.showPolarityButton.but_txt = "Show Polarity\n" + gui.headPlot1.getUsePolarityTrueFalse();
 }
 
 void fileSelected(File selection) {  //called by the Open File dialog box after a file has been selected

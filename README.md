@@ -1,4 +1,13 @@
 # Modified version of the OpenBCI GUI for OSC control and Spectrum output in a CSV file.
+
+Edit the "selectedFreqBands.txt" file for defining your frequency bands of interest (allow gain and min/max ajustement).
+
+OSC are sent to port 12000 at: /openbci/chan{channel name}/{frequency band name}
+
+Include PureData patch for DMX manipulation and OSCulator patch to monitor values.
+
+Contact: Guillaume Dumas @ guillaume@hackyourphd.org
+
 Below is the original README.md
 
 ---
