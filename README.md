@@ -1,12 +1,14 @@
 # OpenBCI-GUI MOD. with OSC control
 
 Edit the "selectedFreqBands.txt" file for defining your frequency bands of interest (allow gain and min/max ajustement).
+The OSC values are then sent to port 12000 at: /openbci/chan{channel name}/{frequency band name}
+Notice that you can modify the Config file while the recording is running.
 
-OSC values are sent to port 12000 at: /openbci/chan{channel name}/{frequency band name}
+Every 10min, the data acquisition is restarted (temporary solution for unstable freeze of the recordings).
 
 Included:
 - a PureData patch for DMX manipulation
-- OSCulator patch to monitor values.
+- an OSCulator patch to monitor ongoing values
 
 Contact/Questions: Guillaume Dumas, deep[at]introspection.eu
 
