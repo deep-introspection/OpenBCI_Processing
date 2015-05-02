@@ -707,7 +707,7 @@ void processNewData() {
     
     //average the FFT with previous FFT data so that it makes it smoother in time
     double min_val = 0.01d;
-    float sumSpectrum = 0;
+    
     for (int I=0; I < fftBuff[Ichan].specSize(); I++) {   //loop over each fft bin
       if (prevFFTdata[I] < min_val) prevFFTdata[I] = (float)min_val; //make sure we're not too small for the log calls
       foo = fftBuff[Ichan].getBand(I); if (foo < min_val) foo = min_val; //make sure this value isn't too small
@@ -747,7 +747,7 @@ void processNewData() {
       moy=freqGain*moy/(freqEnd-freqStart+1);
       myMessage.add(((moy-freqMin)/(freqMax-freqMin)));
       oscP5.send(myMessage, myRemoteLocation); 
-      println(millis()+": Sent OSC at /openbci/chan"+str(Ichan+1)+"/"+freqName+" = "+moy);
+      println((millis()-LastStartRecording)+": Sent OSC at /openbci/chan"+str(Ichan+1)+"/"+freqName+" = "+moy);
       tmp += "/openbci/chan"+str(Ichan+1)+"/"+freqName+"="+moy+";";
     }
     index = index + 1;
