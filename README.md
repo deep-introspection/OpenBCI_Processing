@@ -7,7 +7,7 @@ OSC values are sent to port 12000 at: /openbci/chan{channel name}/{frequency ban
 Included:
 - a PureData patch for DMX manipulation
 - OSCulator patch to monitor values.
-- 
+
 Contact/Questions: Guillaume Dumas, deep[at]introspection.eu
 
 Below is the original README.md
