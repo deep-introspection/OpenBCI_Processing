@@ -4,6 +4,7 @@
 //
 // Created: Chip Audette, Oct 2013 - May 2014
 // Modified: Conor Russomanno & Joel Murphy, August 2014 - Dec 2014
+// Modified for OSC: Guillaume Dumas, May 2015
 //
 // Requires gwoptics graphing library for processing.  Built on V0.5.0
 // http://www.gwoptics.org/processing/gwoptics_p5lib/
@@ -487,8 +488,8 @@ void systemUpdate(){ // for updating data values and variables
   // START Guillaume's modifications
   if(((millis()-LastStartRecording)>(1000*60*10))&&(isRunning)){
     println("REBOOT!");
-    stopButtonWasPressed();
-    stopButtonWasPressed();
+    openBCI.stopDataTransfer();
+    openBCI.startDataTransfer();
   }
   // -END- Guillaume's modifications
   
