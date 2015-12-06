@@ -5,6 +5,7 @@
 // Created: Chip Audette, Oct 2013 - May 2014
 // Modified: Conor Russomanno & Joel Murphy, August 2014 - Dec 2014
 // Modified for OSC: Guillaume Dumas, May 2015
+//                   Romain Trachel, Dec 2015
 //
 // Requires gwoptics graphing library for processing.  Built on V0.5.0
 // http://www.gwoptics.org/processing/gwoptics_p5lib/
@@ -162,8 +163,8 @@ PFont f3;
 //========================SETUP============================//
 void setup() {
   
-  oscP5 = new OscP5(this,6400);
-  myRemoteLocation = new NetAddress("127.0.0.1",12000);
+  oscP5 = new OscP5(this,5001);
+  myRemoteLocation = new NetAddress("127.0.0.1",6400);
   
   // START Guillaume's modifications
   output = createWriter("Traces"+year()+"-"+month()+"-"+day()+"_"+hour()+"-"+minute()+"-"+second()+".txt");
@@ -667,8 +668,13 @@ void processNewData() {
   //if you want to, re-reference the montage to make it be a mean-head reference
   if (false) rereferenceTheMontage(dataBuffY_filtY_uV);
   
-  
   String tmp = prevMillis + ",";
+  // START Romain's modifications
+  OscMessage tsMessage = new OscMessage("/openbci/timestamp");
+  tsMessage.add((prevMillis));
+  oscP5.send(tsMessage, myRemoteLocation); 
+  println((millis()-LastStartRecording)+": Sent OSC at /openbci/timestamp = "+prevMillis);
+  // STOP Romain's modifications
   
   //update the FFT (frequency spectrum)
   for (int Ichan=0;Ichan < nchan; Ichan++) {     
