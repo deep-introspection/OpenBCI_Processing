@@ -118,7 +118,7 @@ String output_fname;
 String fileName = "N/A";
 
 //create objects that'll do the EEG signal processing
-EEG_Processing eegProcessing;a
+EEG_Processing eegProcessing;
 EEG_Processing_User eegProcessing_user;
 
 //fft constants
@@ -892,7 +892,6 @@ String getDateString() {
 void mousePressed() {
 
   verbosePrint("OpenBCI_GUI: mousePressed: mouse pressed");
-  basecount = 0;
   //if not in initial setup...
   if(systemMode >= 10){
 
@@ -996,6 +995,8 @@ void mousePressed() {
         GraphDataPoint dataPoint = new GraphDataPoint();
         gui.getFFTdataPoint(mouseX,mouseY,dataPoint);
         println("OpenBCI_GUI: FFT data point: " + String.format("%4.2f",dataPoint.x) + " " + dataPoint.x_units + ", " + String.format("%4.2f",dataPoint.y) + " " + dataPoint.y_units);
+        println("OpenBCI_Guillaume: Resetting baseline");
+        basecount = 0;
       } else if (gui.headPlot1.isPixelInsideHead(mouseX,mouseY)) {
         //toggle the head plot contours
         gui.headPlot1.drawHeadAsContours = !gui.headPlot1.drawHeadAsContours;
