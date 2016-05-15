@@ -5,7 +5,7 @@
 // Created: Chip Audette, Oct 2013 - May 2014
 // Modified: Conor Russomanno & Joel Murphy, August 2014 - Dec 2014
 // Modified for OSC: Guillaume Dumas, May 2015
-//                   Romain Trachel, Dec 2015
+//                   Romain Trachel, Dec 2015, May 2016
 //
 // Requires gwoptics graphing library for processing.  Built on V0.5.0
 // http://www.gwoptics.org/processing/gwoptics_p5lib/
@@ -36,6 +36,12 @@ String[] selectedFreqBands;
 PrintWriter output;
 int LastStartRecording;
 // -END- Guillaume's modifications
+float baselen = 200.;
+int baseidx = 0;
+boolean isbaseline = false;
+int basecount = -1;
+float[][][] baseline;
+// -END- Romain's baseline modifications
 
 boolean isVerbose = false; //set true if you want more verbosity in console
 
@@ -391,6 +397,11 @@ void initializeGUI(){
   println("OpenBCI_GUI: initializeGUI: 5");
   gui.setDecimateFactor(2);
   println("OpenBCI_GUI: initializeGUI: 6");
+  // START Romain's modifications for baseline
+  // read freq bands only once now!
+  selectedFreqBands = loadStrings("selectedFreqBands.txt");
+  // create an array to store the baseline
+  baseline = new float[selectedFreqBands.length][16][int(baselen)];
 }
 
 //======================== DRAW LOOP =============================//
@@ -673,7 +684,9 @@ void processNewData() {
   OscMessage tsMessage = new OscMessage("/openbci/timestamp");
   tsMessage.add((prevMillis));
   oscP5.send(tsMessage, myRemoteLocation); 
-  println((millis()-LastStartRecording)+": Sent OSC at /openbci/timestamp = "+prevMillis);
+  // println((millis()-LastStartRecording)+": Sent OSC at /openbci/timestamp = "+prevMillis);
+  // update baseline counter
+  basecount = basecount + 1;
   // STOP Romain's modifications
   
   //update the FFT (frequency spectrum)
@@ -735,7 +748,7 @@ void processNewData() {
     } //end loop over FFT bins
      
   // START Guillaume's modifications
-  selectedFreqBands = loadStrings("selectedFreqBands.txt");
+  // selectedFreqBands = loadStrings("selectedFreqBands.txt"); // commented by Romain
   int index=0;
   while (index < selectedFreqBands.length) {
     String[] pieces = split(selectedFreqBands[index], ',');
@@ -743,26 +756,48 @@ void processNewData() {
       String freqName = pieces[0];
       int freqStart = int(pieces[1]);
       int freqEnd = int(pieces[2]);
-      float freqGain = float(pieces[3]);
-      float freqMin = float(pieces[4]);
-      float freqMax = float(pieces[5]);
+      // Romain's baseline modif doesnt need these variables anymore
+      //float freqGain = float(pieces[3]);
+      //float freqMin = float(pieces[4]);
+      //float freqMax = float(pieces[5]);
       OscMessage myMessage = new OscMessage("/openbci/chan"+str(Ichan+1)+"/"+freqName);
       float moy = 0;
       for (int freqBin = freqStart; freqBin <= freqEnd; freqBin++){ 
         moy += fftBuff[Ichan].getBand(freqBin);
       }
-      moy=freqGain*moy/(freqEnd-freqStart+1);
-      myMessage.add(((moy-freqMin)/(freqMax-freqMin)));
-      oscP5.send(myMessage, myRemoteLocation); 
-      println((millis()-LastStartRecording)+": Sent OSC at /openbci/chan"+str(Ichan+1)+"/"+freqName+" = "+moy);
-      tmp += "/openbci/chan"+str(Ichan+1)+"/"+freqName+"="+moy+";";
+      // Doesnt need to scale it like that anymore
+      //moy=freqGain*moy/(freqEnd-freqStart+1);
+      
+      // START Romain's baseline modifications
+      baseidx = int(basecount);
+      if ((baseidx < baselen)){
+        if ((Ichan == 0) && (index == 0)) {
+          println("getting baseline sample " + str(baseidx) + "/" + str(baselen));
+        }
+        baseline[index][Ichan+1][baseidx] = moy;
+      } else if (baseidx == baselen) {
+        float[] tosort = baseline[index][Ichan+1];
+        baseline[index][Ichan+1] = sort(tosort);
+        println("baseline done!");
+        println("start streaming osc");
+      } else if (baseidx > baselen) {
+        // look for moy index in the sorted values
+        int oscvalue = 0;
+        while ((oscvalue < baselen) && (baseline[index][Ichan+1][oscvalue] < moy)){
+          oscvalue = oscvalue + 1;
+        }
+        //myMessage.add(((moy-freqMin)/(freqMax-freqMin)));
+        myMessage.add(oscvalue/baselen);
+        oscP5.send(myMessage, myRemoteLocation); 
+        tmp += "/openbci/chan"+str(Ichan+1)+"/"+freqName+"="+moy+";";
+      }
     }
     index = index + 1;
   }
   // -END- Guillaume's modifications
+  // -END- Romain's baseline modifications
 
   } //end the loop over channels.
-  
   // START Guillaume's modifications
   output.println(tmp);
   // -END- Guillaume's modifications
@@ -857,7 +892,6 @@ String getDateString() {
 void mousePressed() {
 
   verbosePrint("OpenBCI_GUI: mousePressed: mouse pressed");
-  
   //if not in initial setup...
   if(systemMode >= 10){
 
@@ -961,6 +995,8 @@ void mousePressed() {
         GraphDataPoint dataPoint = new GraphDataPoint();
         gui.getFFTdataPoint(mouseX,mouseY,dataPoint);
         println("OpenBCI_GUI: FFT data point: " + String.format("%4.2f",dataPoint.x) + " " + dataPoint.x_units + ", " + String.format("%4.2f",dataPoint.y) + " " + dataPoint.y_units);
+        println("OpenBCI_Guillaume: Resetting baseline");
+        basecount = 0;
       } else if (gui.headPlot1.isPixelInsideHead(mouseX,mouseY)) {
         //toggle the head plot contours
         gui.headPlot1.drawHeadAsContours = !gui.headPlot1.drawHeadAsContours;
